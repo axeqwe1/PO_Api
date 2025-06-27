@@ -1,7 +1,6 @@
-﻿using PO_Api.Models;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore;
-using System.Reflection.Emit;
+﻿using Microsoft.EntityFrameworkCore;
+using PO_Api.Models;
+using YourProject.Models;
 
 namespace PO_Api.Data
 {
@@ -23,7 +22,26 @@ namespace PO_Api.Data
             .HasForeignKey(d => d.PONo)
             .HasPrincipalKey(p => p.PONo);
 
+            modelBuilder.Entity<PO_Main>()
+            .HasMany(p => p.FileAttachment)
+            .WithOne() // ถ้าไม่มี navigation back จาก PO_FileAttachment → PO_Main
+            .HasForeignKey(f => f.PONo)
+            .HasPrincipalKey(p => p.PONo);
 
+            modelBuilder.Entity<PO_FileAttachment>(entity =>
+            {
+                entity.ToTable("PO_FileAttachment");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.Filename).HasColumnName("filename");
+                entity.Property(e => e.Type).HasColumnName("type");
+                entity.Property(e => e.UploadDate).HasColumnName("uploadDate");
+                entity.Property(e => e.Url).HasColumnName("url");
+                entity.Property(e => e.PONo).HasColumnName("PONo");
+                entity.Property(e => e.OriginalName).HasColumnName("originalName");
+                entity.Property(e => e.UploadByType).HasColumnName("UploadByType");
+                entity.Property(e => e.FileSize).HasColumnName("fileSize");
+            });
         }
         public DbSet<User> Users { get; set; }
         public DbSet<Role> Roles { get; set; }
@@ -32,5 +50,6 @@ namespace PO_Api.Data
         public DbSet<PO_SuppRcv> PO_SuppRcvs { get; set; }
         public DbSet<PO_Details> PO_Details { get; set; }
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+        public DbSet<PO_FileAttachment> PO_FileAttachments { get; set; }
     }
 }

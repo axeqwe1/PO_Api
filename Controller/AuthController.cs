@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PO_Api.Data;
@@ -9,7 +8,7 @@ namespace PO_Api.Controller
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AuthController:ControllerBase
+    public class AuthController : ControllerBase
     {
 
         private readonly AppDbContext _db;
@@ -118,7 +117,7 @@ namespace PO_Api.Controller
                 // ตั้งค่า Cookie ใหม่
                 SetCookie("access_token", newAccessToken, minutes: 30);
                 SetCookie("refresh_token", newRefreshToken, days: 7); // กำหนดวันหมดอายุคงที่
-                SetCookie("auth_status", "authenticated", days: 7, httpOnly:false);
+                SetCookie("auth_status", "authenticated", days: 7, httpOnly: false);
 
                 return Ok(new
                 {
@@ -187,7 +186,6 @@ namespace PO_Api.Controller
                 rolename.RoleName,
             });
         }
-
 
         private void SetCookie(string name, string value, int? minutes = null, int? days = null,
                               DateTime? expire = null, bool httpOnly = true)

@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PO_Api.Data;
 using PO_Api.Data.DTO.Request;
@@ -19,7 +18,7 @@ namespace PO_Api.Controller
             _jwt = jwt;
         }
 
-        [Authorize(Roles = "Admin")]
+        //[Authorize(Roles = "Admin")]
         [HttpGet("GetAll")]
         public async Task<IActionResult> GetRoles()
         {
@@ -34,7 +33,7 @@ namespace PO_Api.Controller
 
         public async Task<IActionResult> CreateRole(CreateRoleRequestDTO request)
         {
-            if(request.RoleName == null || request.RoleName.Trim() == "")
+            if (request.RoleName == null || request.RoleName.Trim() == "")
                 return BadRequest("Role name cannot be empty");
 
             _db.Roles.Add(new Models.Role

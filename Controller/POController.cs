@@ -1,18 +1,13 @@
-﻿using System.Linq;
-using System.Security;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity.Data;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PO_Api.Data;
-using PO_Api.Data.DTO.Request;
 using PO_Api.Models;
 
 namespace PO_Api.Controller
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class POController:ControllerBase
+    public class POController : ControllerBase
     {
 
         private readonly AppDbContext _db;
@@ -24,9 +19,9 @@ namespace PO_Api.Controller
             _jwt = jwt;
         }
 
-        
+
         [HttpGet("GetAllPOPagin")]
-        public async Task<IActionResult> GetAllPOPagin(string tab = "all",int page = 1, int pageSize = 10)
+        public async Task<IActionResult> GetAllPOPagin(string tab = "all", int page = 1, int pageSize = 10)
         {
             try
             {
@@ -69,6 +64,7 @@ namespace PO_Api.Controller
                     po.ClosePO,
                     po.ApproveDate,
                     po.CancelPO,
+                    po.POReady,
                     po.FinalETADate,
                     SupplierName = po.Suppliers?.SupplierName,
                     Details = po.Details.Select(t => new
@@ -127,10 +123,8 @@ namespace PO_Api.Controller
         {
             try
             {
-                var query = _db.PO_Mains
-                    .Include(p => p.Details)
-                    .Include(p => p.ReceiveInfo)
-                    .Where(t => t.ClosePO == true )
+                var items = await _db.PO_Mains
+                    .Where(po => po.POReady == true)
                     .OrderByDescending(po => po.ApproveDate)
                     .Select(po => new
                     {
@@ -141,35 +135,27 @@ namespace PO_Api.Controller
                         po.ClosePO,
                         po.ApproveDate,
                         po.CancelPO,
+                        po.POReady,
                         po.FinalETADate,
-
-                        Details = _db.PO_Details
-                            .Where(d => d.PONo == po.PONo)
-                            .ToList(), // ยังใช้ ToList ได้แต่ควร paginate ภายหลัง
-
-                        ReceiveInfo = _db.PO_SuppRcvs
-                            .Where(r => r.PONo == po.PONo)
-                            .FirstOrDefault()
-                    });
-
-                // Pagination
-                var totalCount = await query.CountAsync();
-                var totalPendding = await query.CountAsync(t => t.ClosePO == true && !_db.PO_SuppRcvs.Any(r => r.PONo == t.PONo && r.SuppCancelPO == 0));
-                var items = await query
-                    //.Skip((page - 1) * pageSize)
-                    //.Take(pageSize)
+                        SupplierName = po.Suppliers.SupplierName,
+                        ReceiveInfo = _db.PO_SuppRcvs.FirstOrDefault(t => t.PONo == po.PONo),
+                        Files = _db.PO_FileAttachments
+                            .Where(f => f.PONo == po.PONo) // 1 = PO File
+                            .Select(f => new
+                            {
+                                f.Id,
+                                f.Filename,
+                                f.Type,
+                                f.UploadDate,
+                                f.Url,
+                                f.OriginalName,
+                                f.FileSize,
+                                f.UploadByType
+                            }).ToList(),
+                    })
                     .ToListAsync();
-                var totalConfirm = await query.CountAsync(t => t.ClosePO == true && _db.PO_SuppRcvs.Any(r => r.PONo == t.PONo && r.SuppCancelPO == 0));
 
-                return Ok(new
-                {
-                    totalCount,
-                    totalPendding,
-                    totalConfirm,
-                    items,
-                    //page,
-                    //pageSize
-                });
+                return Ok(new { items });
             }
             catch (Exception ex)
             {
@@ -186,7 +172,7 @@ namespace PO_Api.Controller
                 var query = _db.PO_Mains
                     .Include(p => p.Details)
                     .Include(p => p.ReceiveInfo)
-                    .Where(t => t.ClosePO == true && t.SuppCode == suppCode)
+                    .Where(t => t.POReady == true && t.SuppCode == suppCode)
                     .OrderByDescending(po => po.ApproveDate)
                     .Select(po => new
                     {
@@ -197,31 +183,24 @@ namespace PO_Api.Controller
                         po.ClosePO,
                         po.ApproveDate,
                         po.CancelPO,
+                        po.POReady,
                         po.FinalETADate,
-
+                        SupplierName = po.Suppliers.SupplierName,
+                        ReceiveInfo = _db.PO_SuppRcvs.FirstOrDefault(t => t.PONo == po.PONo),
                         Details = _db.PO_Details
                             .Where(d => d.PONo == po.PONo)
                             .ToList(), // ยังใช้ ToList ได้แต่ควร paginate ภายหลัง
 
-                        ReceiveInfo = _db.PO_SuppRcvs
-                            .Where(r => r.PONo == po.PONo)
-                            .FirstOrDefault()
                     });
 
                 // Pagination
-                var totalCount = await query.CountAsync();
-                var totalPendding = await query.CountAsync(t => t.ClosePO == true && !_db.PO_SuppRcvs.Any(r => r.PONo == t.PONo && r.SuppCancelPO == 0));
+
                 var items = await query
-                    //.Skip((page - 1) * pageSize)
-                    //.Take(pageSize)
                     .ToListAsync();
-                var totalConfirm = await query.CountAsync(t => t.ClosePO == true && _db.PO_SuppRcvs.Any(r => r.PONo == t.PONo && r.SuppCancelPO == 0));
+
 
                 return Ok(new
                 {
-                    totalCount,
-                    totalPendding,
-                    totalConfirm,
                     items,
                     //page,
                     //pageSize
@@ -233,18 +212,35 @@ namespace PO_Api.Controller
             }
         }
 
-        [HttpGet("GetPODetail")]
-        public async Task<IActionResult> GetPODetail(string PONo)
+        [HttpGet("GetPODetails/{poNo}")]
+        public async Task<IActionResult> GetPODetails(string poNo)
         {
             try
             {
-                var detailData = await _db.PO_Details.Where(t => t.PONo == PONo).ToListAsync();
+                var details = await _db.PO_Details
+                    .Where(d => d.PONo == poNo)
+                    .Select(d => new
+                    {
+                        d.PONo,
+                        d.MatrClass,
+                        d.MatrCode,
+                        d.Color,
+                        d.Size,
+                        d.Description,
+                        d.FinalETADate,
+                        d.TempId
+                    })
+                    .ToListAsync();
 
-                return Ok(detailData);
+
+                return Ok(new
+                {
+                    Details = details,
+                });
             }
             catch (Exception ex)
             {
-                throw new Exception(ex.Message);
+                return StatusCode(500, ex.Message);
             }
         }
 
@@ -285,7 +281,8 @@ namespace PO_Api.Controller
                     return BadRequest("Not Found PO");
                 }
 
-                if (poStatus != null) {
+                if (poStatus != null)
+                {
                     return BadRequest("This File Already Download");
                 }
 
@@ -309,7 +306,7 @@ namespace PO_Api.Controller
         }
 
         [HttpPost("RequestCancel")]
-        public async Task<IActionResult> RequestCancel(string PONo,string Remark)
+        public async Task<IActionResult> RequestCancel(string PONo, string Remark)
         {
             try
             {
@@ -353,10 +350,11 @@ namespace PO_Api.Controller
                     poStatus.SuppCancelPO = 1;
                     _db.PO_SuppRcvs.Update(poStatus);
                 }
-                
+
                 await _db.SaveChangesAsync();
                 return Ok("Send Request Cancel Success");
-            }catch(Exception ex)
+            }
+            catch (Exception ex)
             {
                 throw new Exception(ex.Message);
             }

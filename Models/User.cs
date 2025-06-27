@@ -6,7 +6,7 @@ namespace PO_Api.Models
     [Table("PO_User")] // กำหนดชื่อตารางในฐานข้อมูล
     public class User
     {
-        
+
         [Key] // กำหนดให้ Id เป็น Primary Key
         [Required]
         public int userId { get; set; }

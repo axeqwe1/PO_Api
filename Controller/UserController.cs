@@ -1,6 +1,5 @@
-﻿using Azure.Core;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PO_Api.Data;
@@ -11,8 +10,8 @@ namespace PO_Api.Controller
 {
     [Route("api/[controller]")]
     [ApiController]
-    
-    public class UserController:ControllerBase
+
+    public class UserController : ControllerBase
     {
 
         private readonly AppDbContext _db;
@@ -105,10 +104,14 @@ namespace PO_Api.Controller
             });
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize]
         [HttpPut("{userId}/change-password")]
         public async Task<IActionResult> ChangePassword(int userId, [FromBody] ChangePasswordDTO dto)
         {
+            var role = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+            if (role != "Admin" || role != "SupperAdmin")
+                return Unauthorized("You are not authorized to access this resource.");
+
             var user = await _db.Users.FindAsync(userId);
             if (user == null)
                 return NotFound("User not found");
@@ -124,11 +127,17 @@ namespace PO_Api.Controller
         public async Task<IActionResult> UpdateUser(int id, UpdateUserRequestDTO request)
         {
             // ตรวจสอบว่าผู้ใช้มีอยู่หรือไม่
+            var roleAuth = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+            if (roleAuth != "Admin" || roleAuth != "SupperAdmin")
+                return Unauthorized("You are not authorized to access this resource.");
+
             var user = await _db.Users.FindAsync(id);
             var role = await _db.Roles.FirstOrDefaultAsync(t => t.RoleName == request.RoleName);
-            if (!string.IsNullOrEmpty(request.SupplierId)) { 
+            if (!string.IsNullOrEmpty(request.SupplierId))
+            {
                 var supplier = await _db.Suppliers.FirstOrDefaultAsync(t => t.SupplierCode == request.SupplierId);
-                if (supplier == null) {
+                if (supplier == null)
+                {
                     return BadRequest("Not Found Supplier Data");
                 }
             }
@@ -150,14 +159,17 @@ namespace PO_Api.Controller
             return Ok(new
             {
                 message = "User updated successfully",
-                
+
             });
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize]
         [HttpDelete("Delete/{userId}")]
         public async Task<IActionResult> DeleteUser(int userId)
         {
+            var roleAuth = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+            if (roleAuth != "Admin" || roleAuth != "SupperAdmin")
+                return Unauthorized("You are not authorized to access this resource.");
             var user = await _db.Users.FindAsync(userId);
             if (user == null)
                 return NotFound("User not found");

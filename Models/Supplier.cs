@@ -7,7 +7,7 @@ namespace PO_Api.Models
     [Table("PO_Supplier")] // กำหนดชื่อตารางในฐานข้อมูล
     public class Supplier
     {
-        
+
         [Key]
         public string? SupplierCode { get; set; }
         public string? SupplierName { get; set; }

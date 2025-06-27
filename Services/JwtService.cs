@@ -1,13 +1,12 @@
 ﻿// Services/JwtService.cs
-using Azure;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using PO_Api.Data;
-using PO_Api.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using PO_Api.Data;
+using PO_Api.Models;
 
 public class JwtService
 {

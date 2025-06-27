@@ -1,19 +1,21 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
-using System.Text;
+﻿using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PO_Api.Data;
+using PO_Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-builder.Services.AddDbContext<AppDbContext>(options => 
+builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")
     )
 );
+builder.Services.AddScoped<IFileService, FileService>();
 // เพิ่มบริการ CORS
 builder.Services.AddCors(options =>
 {
@@ -22,9 +24,9 @@ builder.Services.AddCors(options =>
         // อนุญาตเฉพาะโดเมนที่ระบุ
         policy.WithOrigins(
                 "http://localhost:3000", // React
-                "http://localhost:4200", // Angular
-                "http://localhost:3001", // Angular
-                "https://www.ymt-group.com", // Angular
+                "http://localhost:4200",
+                "http://localhost:3001",
+                "https://www.ymt-group.com",
                 "http://localhost:8080") // Vue
             .AllowAnyHeader()
             .AllowAnyMethod()

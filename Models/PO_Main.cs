@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using YourProject.Models;
 
 namespace PO_Api.Models
 {
@@ -15,15 +16,17 @@ namespace PO_Api.Models
         public string? SuppContact { get; set; }
         public bool? ClosePO { get; set; }
         public bool? CancelPO { get; set; }
-        public DateTime ApproveDate { get; set; }
+        public bool? POReady { get; set; }
+        public DateTime? ApproveDate { get; set; }
         public DateTime? FinalETADate { get; set; }
 
         [ForeignKey("SuppCode")]
-        public virtual Supplier Suppliers { get; set; }
-        public virtual ICollection<PO_Details> Details { get; set; }
+        public virtual Supplier? Suppliers { get; set; }
+        public virtual ICollection<PO_Details>? Details { get; set; }
 
         [ForeignKey("PONo")]
-        public virtual PO_SuppRcv ReceiveInfo { get; set; }
+        public virtual PO_SuppRcv? ReceiveInfo { get; set; }
 
+        public virtual ICollection<PO_FileAttachment>? FileAttachment { get; set; }
     }
 }
