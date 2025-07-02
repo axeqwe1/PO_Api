@@ -35,5 +35,6 @@ namespace YourProject.Models
         public byte UploadByType { get; set; }
 
         public int FileSize { get; set; }
+        public string? Remark { get; set; } = string.Empty;
     }
 }

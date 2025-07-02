@@ -291,7 +291,8 @@ namespace PO_Api.Services
                     UploadDate = fileAttachment.UploadDate,
                     Url = fileAttachment.Url,
                     PONo = fileAttachment.PONo,
-                    FileSize = fileAttachment.FileSize
+                    FileSize = fileAttachment.FileSize,
+                    Remark = fileAttachment.Remark
                 };
             }
             catch (Exception ex)
@@ -299,6 +300,27 @@ namespace PO_Api.Services
                 throw new Exception(ex.Message);
             }
 
+        }
+
+        public async Task<bool> UpdateDescriptionAsync(int FileId,string description)
+        {
+            try{
+
+                var fileAttachment = await _context.PO_FileAttachments.FindAsync(FileId);
+                if (fileAttachment == null)
+                {
+                    return false;
+                }
+                fileAttachment.Remark = description;
+                _context.PO_FileAttachments.Update(fileAttachment);
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error updating file description for file ID {FileId}");
+                return false;
+            }
         }
     }
 }

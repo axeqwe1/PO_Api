@@ -10,5 +10,6 @@ namespace PO_Api.Services
         Task<bool> DeleteFileAsync(int fileId);
         Task<FileStream> DownloadFileAsync(int fileId);
         Task<FileUploadDto> GetFileByIdAsync(int fileId);
+        Task<bool> UpdateDescriptionAsync(int fileId, string description);
     }
 }

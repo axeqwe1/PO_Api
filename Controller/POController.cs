@@ -150,10 +150,57 @@ namespace PO_Api.Controller
                                 f.Url,
                                 f.OriginalName,
                                 f.FileSize,
-                                f.UploadByType
+                                f.UploadByType,
+                                f.Remark
                             }).ToList(),
                     })
                     .ToListAsync();
+
+                return Ok(new { items });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        [HttpGet("GetPONo/{poNo}")]
+        public async Task<IActionResult> GetPOByPONo(string poNo)
+        {
+            try
+            {
+                var items = await _db.PO_Mains
+                    .Where(po => po.POReady == true && po.PONo == poNo)
+                    .OrderByDescending(po => po.ApproveDate)
+                    .Select(po => new
+                    {
+                        po.PONo,
+                        po.CompanyCode,
+                        po.SuppCode,
+                        po.SuppContact,
+                        po.ClosePO,
+                        po.ApproveDate,
+                        po.CancelPO,
+                        po.POReady,
+                        po.FinalETADate,
+                        SupplierName = po.Suppliers.SupplierName,
+                        ReceiveInfo = _db.PO_SuppRcvs.FirstOrDefault(t => t.PONo == po.PONo),
+                        Files = _db.PO_FileAttachments
+                            .Where(f => f.PONo == po.PONo) // 1 = PO File
+                            .Select(f => new
+                            {
+                                f.Id,
+                                f.Filename,
+                                f.Type,
+                                f.UploadDate,
+                                f.Url,
+                                f.OriginalName,
+                                f.FileSize,
+                                f.UploadByType,
+                                f.Remark
+                            }).ToList(),
+                    })
+                    .FirstOrDefaultAsync();
 
                 return Ok(new { items });
             }
@@ -169,10 +216,8 @@ namespace PO_Api.Controller
             try
             {
 
-                var query = _db.PO_Mains
-                    .Include(p => p.Details)
-                    .Include(p => p.ReceiveInfo)
-                    .Where(t => t.POReady == true && t.SuppCode == suppCode)
+                var items = await _db.PO_Mains
+                    .Where(po => po.POReady == true && po.SuppCode == suppCode)
                     .OrderByDescending(po => po.ApproveDate)
                     .Select(po => new
                     {
@@ -187,24 +232,24 @@ namespace PO_Api.Controller
                         po.FinalETADate,
                         SupplierName = po.Suppliers.SupplierName,
                         ReceiveInfo = _db.PO_SuppRcvs.FirstOrDefault(t => t.PONo == po.PONo),
-                        Details = _db.PO_Details
-                            .Where(d => d.PONo == po.PONo)
-                            .ToList(), // ยังใช้ ToList ได้แต่ควร paginate ภายหลัง
-
-                    });
-
-                // Pagination
-
-                var items = await query
+                        Files = _db.PO_FileAttachments
+                            .Where(f => f.PONo == po.PONo) // 1 = PO File
+                            .Select(f => new
+                            {
+                                f.Id,
+                                f.Filename,
+                                f.Type,
+                                f.UploadDate,
+                                f.Url,
+                                f.OriginalName,
+                                f.FileSize,
+                                f.UploadByType,
+                                f.Remark
+                            }).ToList(),
+                    })
                     .ToListAsync();
 
-
-                return Ok(new
-                {
-                    items,
-                    //page,
-                    //pageSize
-                });
+                return Ok(new { items });
             }
             catch (Exception ex)
             {

@@ -118,6 +118,33 @@ namespace PO_Api.Controller
                 return StatusCode(500, new { success = false, message = "Internal server error" });
             }
         }
+
+
+        [HttpPut]
+        [Route("update-description/{fileId}")]
+        public async Task<IActionResult> UpdateDescriptionFile(int fileId, [FromBody] DescriptionRequest request)
+        {
+            try
+            {
+                bool result = await _fileService.UpdateDescriptionAsync(fileId, request.Description);
+                var message = "";
+                if (result)
+                {
+                    message = "Description updated successfully";
+                }
+                else
+                {
+                    message = "Failed to update description or file not found";
+                }
+                return StatusCode(200, message);
+            }
+            catch(Exception ex)
+            {
+                _logger.LogError(ex, $"Error updating description for file {fileId}");
+                return StatusCode(500, new { success = false, message = "Internal server error" });
+            }
+        }
+            
     }
 
     public class DeleteFileRequest
@@ -128,4 +155,9 @@ namespace PO_Api.Controller
             get; set;
         }
     }
+    public class DescriptionRequest
+    {
+        public string Description { get; set; }
+    }
+
 }

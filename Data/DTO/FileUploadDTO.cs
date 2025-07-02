@@ -10,6 +10,7 @@
         public string PONo { get; set; }
         public string OriginalName { get; set; }
         public long FileSize { get; set; }
+        public string Remark { get; set; } = string.Empty;
     }
 
 }
