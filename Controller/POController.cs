@@ -1,7 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using PO_Api.Data;
+using PO_Api.Hubs;
 using PO_Api.Models;
+using YourProject.Models;
 
 namespace PO_Api.Controller
 {
@@ -12,11 +15,13 @@ namespace PO_Api.Controller
 
         private readonly AppDbContext _db;
         private readonly JwtService _jwt;
+        private readonly IHubContext<NotificationHub> _hub;
 
-        public POController(AppDbContext db, JwtService jwt)
+        public POController(AppDbContext db, JwtService jwt, IHubContext<NotificationHub> hub)
         {
             _db = db;
             _jwt = jwt;
+            _hub = hub;
         }
 
 
@@ -137,6 +142,10 @@ namespace PO_Api.Controller
                         po.CancelPO,
                         po.POReady,
                         po.FinalETADate,
+                        po.AmountNoVat,
+                        po.AmountTotal,
+                        po.TotalChange,
+                        po.TotalVat,
                         SupplierName = po.Suppliers.SupplierName,
                         ReceiveInfo = _db.PO_SuppRcvs.FirstOrDefault(t => t.PONo == po.PONo),
                         Files = _db.PO_FileAttachments
@@ -183,6 +192,10 @@ namespace PO_Api.Controller
                         po.CancelPO,
                         po.POReady,
                         po.FinalETADate,
+                        po.AmountNoVat,
+                        po.AmountTotal,
+                        po.TotalChange,
+                        po.TotalVat,
                         SupplierName = po.Suppliers.SupplierName,
                         ReceiveInfo = _db.PO_SuppRcvs.FirstOrDefault(t => t.PONo == po.PONo),
                         Files = _db.PO_FileAttachments
@@ -230,6 +243,10 @@ namespace PO_Api.Controller
                         po.CancelPO,
                         po.POReady,
                         po.FinalETADate,
+                        po.AmountNoVat,
+                        po.AmountTotal,
+                        po.TotalChange,
+                        po.TotalVat,
                         SupplierName = po.Suppliers.SupplierName,
                         ReceiveInfo = _db.PO_SuppRcvs.FirstOrDefault(t => t.PONo == po.PONo),
                         Files = _db.PO_FileAttachments
@@ -273,7 +290,13 @@ namespace PO_Api.Controller
                         d.Size,
                         d.Description,
                         d.FinalETADate,
-                        d.TempId
+                        d.TempId,
+                        d.Unit,
+                        d.Price,
+                        d.Qty,
+                        d.TotalAmount,
+                        d.ChargeValue,
+                        d.ChargeAmt
                     })
                     .ToListAsync();
 
@@ -320,7 +343,7 @@ namespace PO_Api.Controller
             {
                 var data = await _db.PO_Mains.FirstOrDefaultAsync(t => t.PONo == PONo);
                 var poStatus = await _db.PO_SuppRcvs.FirstOrDefaultAsync(t => t.PONo == PONo);
-
+                
                 if (data == null)
                 {
                     return BadRequest("Not Found PO");
@@ -338,9 +361,44 @@ namespace PO_Api.Controller
                     SuppRcvPO = true,
                 };
 
+                var userList = _db.Users.Include(x => x.Role).Where(x => x.Role.RoleName != "User").ToList();
+
+                if (userList.Any())
+                {
+                    // 1. สร้าง Notification หลัก
+                    var newNoti = new PO_Notifications
+                    {
+                        noti_id = Guid.NewGuid(),
+                        title = "PO Downloaded",
+                        message = $"PO เลขที่ {PONo} ถูกคอนเฟิร์มโดย Supplier แล้ว",
+                        type = "PO",
+                        refId = PONo,
+                        refType = "PO",
+                        createAt = DateTime.UtcNow,
+                        createBy = "system" // หรือ user ปัจจุบัน
+                    };
+
+                    // 2. สร้าง Receiver สำหรับทุกคน
+                    foreach (var u in userList)
+                    {
+                        newNoti.Receivers.Add(new PO_NotificationReceiver
+                        {
+                            noti_recvId = Guid.NewGuid(),
+                            noti_id = newNoti.noti_id,
+                            userId = u.userId,
+                            isRead = false,
+                            isArchived = false,
+                            readAt = DateTime.UtcNow
+                        });
+                    }
+
+                    _db.PO_Notifications.Add(newNoti);
+                    await _db.SaveChangesAsync();
+                }
+
                 await _db.PO_SuppRcvs.AddAsync(newStatus);
                 await _db.SaveChangesAsync();
-
+                await _hub.Clients.Group("master").SendAsync("ReceiveMessage", "Info", $"PO {PONo} has been confirmed by supplier.");
                 return Ok("Update Success");
             }
             catch (Exception ex)
