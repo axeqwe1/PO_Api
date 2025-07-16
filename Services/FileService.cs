@@ -1,7 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using PO_Api.Data;
 using PO_Api.Data.DTO;
 using PO_Api.Data.DTO.Response;
+using PO_Api.Hubs;
+using PO_Api.Models;
 using YourProject.Models;
 
 namespace PO_Api.Services
@@ -13,16 +16,23 @@ namespace PO_Api.Services
         private readonly IConfiguration _configuration;
         private readonly ILogger<FileService> _logger;
         private readonly string _networkPath = @"\\192.168.9.3\YMTMainFile\YPTMAIN\POMaterialYPT\POWebsite\"; // Update with your network path
+        private readonly string _localBasePath;
+        private readonly IHubContext<NotificationHub> _hub;
+
         public FileService(
             AppDbContext context,
             IWebHostEnvironment environment,
             IConfiguration configuration,
-            ILogger<FileService> logger)
+            ILogger<FileService> logger,
+            IHubContext<NotificationHub> hub)
         {
             _context = context;
             _environment = environment;
             _configuration = configuration;
             _logger = logger;
+            _localBasePath = Path.Combine(environment.ContentRootPath, "Uploads");
+            _hub = hub;
+
         }
 
         public async Task<FileUploadResponse> UploadFilesAsync(string poNo, int uploadType, List<IFormFile> files)
@@ -61,7 +71,7 @@ namespace PO_Api.Services
                     folderType = "POPurchaseOfficerFile";
                 }
 
-                var networkPath = Path.Combine(_networkPath, folderType);
+                var networkPath = Path.Combine(_localBasePath, folderType);
                 if (!Directory.Exists(networkPath))
                 {
                     Directory.CreateDirectory(networkPath);
@@ -74,7 +84,7 @@ namespace PO_Api.Services
                 }
 
                 var FileInDb = _context.PO_FileAttachments
-                    .Where(f => f.PONo == poNo)
+                    .Where(f => f.PONo == poNo && f.UploadByType == uploadType)
                     .Select(f => new
                     {
                         f.PONo,
@@ -86,7 +96,7 @@ namespace PO_Api.Services
                 var uploadedSize = files.Sum(f => f.Length);
                 var maxFileSize = _configuration.GetValue<long>("FileUpload:MaxFileSizeInBytes", 5242880); // 5MB default
                 var allowedExtensions = _configuration.GetSection("FileUpload:AllowedExtensions").Get<string[]>()
-                    ?? new[] { ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".jpg", ".jpeg", ".png" };
+                    ?? new[] { ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".jpg", ".jpeg", ".png", ".txt" };
                 var totalSize = total + uploadedSize;
                 if (uploadedSize > maxFileSize)
                 {
@@ -170,7 +180,69 @@ namespace PO_Api.Services
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, $"Failed to upload file {file.FileName} for PO {poNo}");
+                        response.Success = false;
+                        response.Message = $"{ex.Message} : Failed to upload file {file.FileName} for PO {poNo}";
+                        return response;
                     }
+                }
+
+                var userList = _context.Users.Include(x => x.Role);
+                var SuppCode = await _context.PO_Mains.FirstOrDefaultAsync(t => t.PONo == poNo);
+                List<User> userListResult = new();
+                string typeName = "";
+                if (uploadType == 1)
+                {
+                    userListResult = await userList.Where(t => t.Role.RoleName != "User").ToListAsync();
+                    typeName = $"Supplier : {SuppCode.SuppCode}";
+                }
+                if (uploadType == 2)
+                {
+                    userListResult = await userList.Where(t => t.Role.RoleName == "User" && t.supplierId == SuppCode.SuppCode).ToListAsync();
+                    typeName = "Purchase Officer";
+                }
+
+                if (userListResult.Any())
+                {
+                    // 1. สร้าง Notification หลัก
+                    var newNoti = new PO_Notifications
+                    {
+                        noti_id = Guid.NewGuid(),
+                        title = "PO UploadFile",
+                        message = $"PO เลขที่ {poNo} มีการอัพโหลดไฟล์โดย {typeName}",
+                        type = "UploadFile",
+                        refId = poNo,
+                        refType = "PO",
+                        createAt = DateTime.UtcNow,
+                        createBy = "system" // หรือ user ปัจจุบัน
+                    };
+
+                    // 2. สร้าง Receiver สำหรับทุกคน
+                    foreach (var u in userListResult)
+                    {
+                        newNoti.Receivers.Add(new PO_NotificationReceiver
+                        {
+                            noti_recvId = Guid.NewGuid(),
+                            noti_id = newNoti.noti_id,
+                            userId = u.userId,
+                            isRead = false,
+                            isArchived = false,
+                            readAt = DateTime.UtcNow
+                        });
+                    }
+
+                    _context.PO_Notifications.Add(newNoti);
+                    await _context.SaveChangesAsync();
+                }
+
+                if (uploadType == 1)
+                {
+                    await _hub.Clients.Group("master").SendAsync("ReceiveMessage", "Info", $"PO {poNo} has been UploadFile by supplier {SuppCode.SuppCode}.");
+                        
+                }
+                if (uploadType == 2)
+                {
+                    await _hub.Clients.Group($"supplier-{SuppCode.SuppCode}").SendAsync("ReceiveMessage", "Info", $"PO {poNo} has been UploadFile by Purchase Officer.");
+
                 }
 
                 response.Success = response.UploadedFiles.Any();
@@ -232,7 +304,7 @@ namespace PO_Api.Services
                 }
 
                 // Delete physical file
-                var filePath = Path.Combine(_networkPath, fileAttachment.Url.Replace("/", Path.DirectorySeparatorChar.ToString()));
+                var filePath = Path.Combine(_localBasePath, fileAttachment.Url.Replace("/", Path.DirectorySeparatorChar.ToString()));
                 if (File.Exists(filePath))
                 {
                     File.Delete(filePath);
@@ -262,7 +334,7 @@ namespace PO_Api.Services
             }
 
             //var filePath = Path.Combine(_networkPath, fileAttachment.Url.TrimStart('/'));
-            var filePath = Path.Combine(_networkPath, fileAttachment.Url.Replace("/", Path.DirectorySeparatorChar.ToString()));
+            var filePath = Path.Combine(_localBasePath, fileAttachment.Url.Replace("/", Path.DirectorySeparatorChar.ToString()));
 
             if (!File.Exists(filePath))
             {

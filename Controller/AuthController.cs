@@ -1,8 +1,12 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json.Linq;
 using PO_Api.Data;
+using PO_Api.Data.DTO;
 using PO_Api.Data.DTO.Request;
+using PO_Api.Models;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace PO_Api.Controller
 {
@@ -13,11 +17,19 @@ namespace PO_Api.Controller
 
         private readonly AppDbContext _db;
         private readonly JwtService _jwt;
-
+        private readonly EmailService _emailService;
         public AuthController(AppDbContext db, JwtService jwt)
         {
             _db = db;
             _jwt = jwt;
+            _emailService = new EmailService(
+                host: "mail.yehpattana.com",
+                port: 587,
+                username: "jarvis-ypt@Ta-yeh.com",
+                password: "J!@#1028", // ต้องเป็น App Password
+                fromEmail: "jarvis-ypt@ta-yeh.com",
+                displayFromEmail: "YPT PO ระบบสมาชิก"
+            );
         }
 
 
@@ -43,16 +55,15 @@ namespace PO_Api.Controller
                 user.userId,
                 user.firstname,
                 user.lastname,
-                user.email,
+                user.username,
                 user.RoleId,
-                rolename.RoleName,
+                roleName = rolename?.RoleName ?? "",
                 user.supplierId,
-                suppliername.SupplierName,
+                supplierName = suppliername?.SupplierName ?? "", // ✅ ปลอดภัย ไม่ error
                 message = "Login successful",
                 //accessToken,
             });
         }
-
 
         [HttpPost("refresh")]
         public async Task<IActionResult> RefreshToken()
@@ -165,7 +176,12 @@ namespace PO_Api.Controller
         public async Task<IActionResult> Me()
         {
             if (User.Identity?.IsAuthenticated != true)
+            {
+                DeleteCookie("access_token");
+                DeleteCookie("refresh_token");
+                SetCookie("auth_status", "", days: -1); // Clear cookie
                 return Unauthorized("Not authenticated");
+            }
 
             var username = User.Identity.Name!;
             var user = await _db.Users.FirstOrDefaultAsync(u => u.username == username);
@@ -179,12 +195,154 @@ namespace PO_Api.Controller
                 user.firstname,
                 user.lastname,
                 user.username,
-                user.email,
+                
                 user.RoleId,
                 user.supplierId,
-                suppliername.SupplierName,
+                supplierName = suppliername?.SupplierName ?? "",
                 rolename.RoleName,
             });
+        }
+
+        [HttpPost("forget-password")]
+        public async Task<IActionResult> ForgetPassword([FromBody] ForgetPasswordRequest request)
+        {
+            try
+            {
+                var email = await _db.UserEmails.FirstOrDefaultAsync(u => u.email == request.Email);
+                if (email == null)
+                {
+                    return NotFound("Email not found.");
+                }
+                var user = await _db.Users.Include(s => s.Emails).FirstOrDefaultAsync(t => t.userId == email.userId);
+                if (user == null)
+                {
+                    return NotFound("User not found with the provided email.");
+                }
+                // Generate a reset token (you can implement your own logic here)
+                var resetToken = Guid.NewGuid().ToString("N"); // 
+                // Save the reset token to the database or send it via email
+                
+                var expires = DateTime.Now.AddMinutes(10);
+
+                var passwordResetToken = new PO_PasswordResetToken
+                {
+                    token = resetToken,
+                    email = request.Email,
+                    expires = expires,
+                    create_at = DateTime.Now,
+                    user_id = user.userId // Assuming user_id is not nullable
+                };
+                
+                await _db.PO_PasswordResetTokens.AddAsync(passwordResetToken);
+                await _db.SaveChangesAsync();
+                // Here you can send the reset link via email to the user
+                // For demonstration, we will just return the reset link
+                // http://localhost:3000/auth/resetpassword?token={resetToken}
+                // https://www.ymt-group.com/PO_Website/auth/resetpassword?token={resetToken}
+                var currentTemplate = new EmailTemplateDTO
+                {
+                    subject = "PO system reset password",
+                    body = "ยืนยันการ reset password คลิ๊กที่ปุ่ม!!",
+                    link = $"https://www.ymt-group.com/PO_Website/auth/resetpassword?token={resetToken}",
+                    btnName = "Reset Password"
+                };
+
+                await _emailService.SendEmailAsync(
+                    to: request.Email,
+                    subject: "PO system reset password",
+                    body: currentTemplate
+                );
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Password reset link has been sent to your email.",
+                    token = resetToken,
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Internal server error occurred while processing the request");
+            }
+        }
+
+        [HttpGet("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromQuery] string token)
+        {
+            try
+            {
+                var passwordResetToken = await _db.PO_PasswordResetTokens.FirstOrDefaultAsync(t => t.token == token);
+                if(passwordResetToken == null)
+                {
+                    return NotFound("Invalid or expired password reset token.");
+                }
+                if(passwordResetToken.expires < DateTime.Now)
+                {
+                    return BadRequest("Password reset token has expired.");
+                }
+                if (passwordResetToken.used)
+                {
+                    return BadRequest("Password reset token is used");
+                }
+                return Ok(new
+                {
+                    message = "Password reset token is valid.",
+                    token = passwordResetToken?.token,
+                    expires = passwordResetToken?.expires,
+                    userId = passwordResetToken?.user_id,
+                    email = passwordResetToken?.email
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Internal server error occurred while processing the request");
+
+            }
+        }
+
+        [HttpPost("loginCross")]
+        public async Task<IActionResult> LoginCrossWeb([FromQuery] int userId)
+        {
+            try
+            {
+                var user = _db.UserCenters.FirstOrDefault(t => t.UserId == userId);
+                if(user == null)
+                {
+                    return NotFound("Not found user in system");
+                }
+
+                var expiry = DateTime.Now.AddDays(7);
+                var accessToken = _jwt.GenerateAccessToken(user);
+                var refreshToken = _jwt.GenerateRefreshToken();
+
+                SetCookie("access_token", accessToken, minutes: 1);
+                SetCookie("refresh_token", refreshToken, expire: expiry);
+                SetCookie("auth_status", "authenticated", expire: expiry, httpOnly: false);
+                var Token = new RefreshToken
+                {
+                    Token = refreshToken,
+                    UserId = user.UserId,
+                    ExpiresAt = DateTime.UtcNow.AddDays(7),
+                    IsRevoked = false
+                };
+
+                _db.RefreshTokens.Add(Token);
+                await _db.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    user.Username,
+                    firstName = user.FullName,
+                    roleName = "PurchaseOfficer",
+                    supplierName = "YPT Center",
+                    message = "Login successful",
+                    //accessToken,
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Internal server error occurred while processing the request");
+            }
         }
 
         private void SetCookie(string name, string value, int? minutes = null, int? days = null,

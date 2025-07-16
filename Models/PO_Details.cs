@@ -16,6 +16,12 @@ namespace PO_Api.Models
         public string? Color { get; set; }
         public string? Size { get; set; }
         public DateTime? FinalETADate { get; set; }
+        public string? Unit { get; set; }
+        public decimal? Price { get; set; }
+        public decimal Qty { get; set; } = 0;
+        public decimal? TotalAmount { get; set; }
+        public decimal? ChargeValue { get; set; }
+        public decimal? ChargeAmt { get; set; }
 
         [ForeignKey("PONo")]
         public virtual PO_Main PO_Main { get; set; }
