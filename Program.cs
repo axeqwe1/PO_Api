@@ -32,8 +32,10 @@ builder.Services.AddCors(options =>
                 "http://localhost:4200",
                 "http://localhost:3001",
                 "https://www.ymt-group.com",
-                "http://localhost:8080"
-                ) // Vue
+                "http://localhost:8080",
+                "http://localhost:5174/",// Vue
+                "http://localhost:5173/"// Vue
+                ) 
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -68,7 +70,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
         OnMessageReceived = context =>
         {
             // ดึง token จาก cookie แทน header
-            var accessToken = context.Request.Cookies["access_token"];
+            var accessToken = context.Request.Cookies["access_token_PO"];
             if (!string.IsNullOrEmpty(accessToken))
             {
                 context.Token = accessToken;

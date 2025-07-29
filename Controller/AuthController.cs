@@ -45,8 +45,8 @@ namespace PO_Api.Controller
             var accessToken = _jwt.GenerateAccessToken(user);
             var refreshToken = _jwt.GenerateRefreshToken();
 
-            SetCookie("access_token", accessToken, minutes: 1);
-            SetCookie("refresh_token", refreshToken, expire: expiry);
+            SetCookie("access_token_PO", accessToken, minutes: 1);
+            SetCookie("refresh_token_PO", refreshToken, expire: expiry);
             SetCookie("auth_status", "authenticated", expire: expiry, httpOnly: false);
             await _jwt.SaveRefreshTokenAsync(user, refreshToken);
 
@@ -68,8 +68,8 @@ namespace PO_Api.Controller
         [HttpPost("refresh")]
         public async Task<IActionResult> RefreshToken()
         {
-            var accessToken = Request.Cookies["access_token"];
-            var refreshToken = Request.Cookies["refresh_token"];
+            var accessToken = Request.Cookies["access_token_PO"];
+            var refreshToken = Request.Cookies["refresh_token_PO"];
 
             // ตรวจสอบว่ามี refresh token หรือไม่
             if (string.IsNullOrEmpty(refreshToken))
@@ -126,8 +126,8 @@ namespace PO_Api.Controller
                 await _db.SaveChangesAsync();
 
                 // ตั้งค่า Cookie ใหม่
-                SetCookie("access_token", newAccessToken, minutes: 30);
-                SetCookie("refresh_token", newRefreshToken, days: 7); // กำหนดวันหมดอายุคงที่
+                SetCookie("access_token_PO", newAccessToken, minutes: 30);
+                SetCookie("refresh_token_PO", newRefreshToken, days: 7); // กำหนดวันหมดอายุคงที่
                 SetCookie("auth_status", "authenticated", days: 7, httpOnly: false);
 
                 return Ok(new
@@ -154,7 +154,7 @@ namespace PO_Api.Controller
             if (string.IsNullOrEmpty(username))
                 return BadRequest("No user context");
 
-            var refreshToken = Request.Cookies["refresh_token"];
+            var refreshToken = Request.Cookies["refresh_token_PO"];
             if (!string.IsNullOrEmpty(refreshToken))
             {
                 var token = await _db.RefreshTokens.FirstOrDefaultAsync(r => r.Token == refreshToken);
@@ -165,20 +165,20 @@ namespace PO_Api.Controller
                 }
             }
 
-            DeleteCookie("access_token");
-            DeleteCookie("refresh_token");
+            DeleteCookie("access_token_PO");
+            DeleteCookie("refresh_token_PO");
             SetCookie("auth_status", "", days: -1); // Clear cookie
             return Ok("Logged out successfully.");
         }
-
+        
         [Authorize]
         [HttpGet("me")]
         public async Task<IActionResult> Me()
         {
             if (User.Identity?.IsAuthenticated != true)
             {
-                DeleteCookie("access_token");
-                DeleteCookie("refresh_token");
+                DeleteCookie("access_token_PO");
+                DeleteCookie("refresh_token_PO");
                 SetCookie("auth_status", "", days: -1); // Clear cookie
                 return Unauthorized("Not authenticated");
             }
@@ -189,6 +189,8 @@ namespace PO_Api.Controller
                 return NotFound("User not found");
             var rolename = await _db.Roles.FirstOrDefaultAsync(r => r.RoleId == user.RoleId);
             var suppliername = await _db.Suppliers.FirstOrDefaultAsync(s => s.SupplierCode == user.supplierId);
+            var expiry = DateTime.Now.AddDays(7);
+            SetCookie("auth_status", "authenticated", expire: expiry, httpOnly: false);
             return Ok(new
             {
                 user.userId,
@@ -315,8 +317,8 @@ namespace PO_Api.Controller
                 var accessToken = _jwt.GenerateAccessToken(user);
                 var refreshToken = _jwt.GenerateRefreshToken();
 
-                SetCookie("access_token", accessToken, minutes: 1);
-                SetCookie("refresh_token", refreshToken, expire: expiry);
+                SetCookie("access_token_PO", accessToken, minutes: 1);
+                SetCookie("refresh_token_PO", refreshToken, expire: expiry);
                 SetCookie("auth_status", "authenticated", expire: expiry, httpOnly: false);
                 var Token = new RefreshToken
                 {

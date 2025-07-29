@@ -145,7 +145,7 @@ namespace PO_Api.Controller
                 var currentTemplate = new EmailTemplateDTO
                 {
                     subject = "PO system register",
-                    body = $"<div>\r\n  <div style=\"display: block; margin-bottom: 8px\">\r\n    ระบบได้เพิ่ม Email ของคุณเข้าสู่ระบบ PO\r\n  </div>\r\n  <div style=\"display: block; margin-bottom: 4px\">\r\n    บัญชีของคุณ (username: {newUser.username}) ได้ลงทะเบียนใช้งานระบบ PO เมื่อวันที่\r\n    {dateTime} ดำเนินการโดย: ระบบ\r\n  </div>\r\n  <br />\r\n  <div style=\"display: block; margin-bottom: 4px\">\r\n    หากคุณเป็นผู้ดำเนินการเอง คุณสามารถละข้อความนี้ได้\r\n  </div>\r\n  <div style=\"display: block; margin-bottom: 4px\">\r\n    Password ตั้งต้นให้กับคุณคือ YPT001 กรุณาเปลี่ยน password\r\n    เพื่อความปลอดภัยของข้อมูล\r\n  </div>\r\n  <div style=\"display: block; margin-bottom: 4px\">\r\n    👉\r\n    <a href=\"https://www.ymt-group.com/PO_Website\" target=\"_blank\"\r\n      >[เข้าสู่ระบบระบบ PO]</a\r\n    >\r\n  </div>\r\n</div>\r\n",
+                    body = $"<div>\r\n  <div style=\"display: block; margin-bottom: 8px\">\r\n    ระบบได้เพิ่ม Email ของคุณเข้าสู่ระบบ PO\r\n  </div>\r\n  <div style=\"display: block; margin-bottom: 4px\">\r\n    บัญชีของคุณ (username: {newUser.username}) ได้ลงทะเบียนใช้งานระบบ PO เมื่อวันที่\r\n    {dateTime} ดำเนินการโดย: ระบบ\r\n  </div>\r\n  <br />\r\n  <div style=\"display: block; margin-bottom: 4px\">\r\n    หากคุณเป็นผู้ดำเนินการเอง คุณสามารถละข้อความนี้ได้\r\n  </div>\r\n  <div style=\"display: block; margin-bottom: 4px\">\r\n    Password ตั้งต้นให้กับคุณคือ YPT001 กรุณาเปลี่ยน password\r\n    เพื่อความปลอดภัยของข้อมูล\r\n  </div>\r\n  <div style=\"display: block; margin-bottom: 4px\">\r\n    👉\r\n    <a href=\"https://www.ymt-group.com/PO_Website\" target=\"_blank\"\r\n      >[เข้าสู่ระบบ PO]</a\r\n    >\r\n  </div>\r\n</div>\r\n",
                     link = $"https://www.ymt-group.com/PO_Website/auth/resetpassword?token={resetToken}",
                     btnName = "Reset Password!"
                 };
@@ -209,7 +209,7 @@ namespace PO_Api.Controller
                             <div style=""display: block; margin-bottom: 4px"">
                             👉
                             <a href=""https://www.ymt-group.com/PO_Website"" target=""_blank"">
-                                [เข้าสู่ระบบระบบ PO]
+                                [เข้าสู่ระบบ PO]
                             </a>
                             </div>
                         </div>
