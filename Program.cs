@@ -1,21 +1,25 @@
 ﻿using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PO_Api.Data;
+using PO_Api.Hubs;
 using PO_Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+//builder.WebHost.UseUrls("http://0.0.0.0:7004");
 builder.Services.AddOpenApi();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")
     )
 );
-builder.Services.AddScoped<IFileService, FileService>();
+builder.Services.AddSignalR();
+//builder.Services.AddScoped<IFileService, FileService>();
 // เพิ่มบริการ CORS
 builder.Services.AddCors(options =>
 {
@@ -24,10 +28,14 @@ builder.Services.AddCors(options =>
         // อนุญาตเฉพาะโดเมนที่ระบุ
         policy.WithOrigins(
                 "http://localhost:3000", // React
+                "http://192.168.4.11:7004",
                 "http://localhost:4200",
                 "http://localhost:3001",
                 "https://www.ymt-group.com",
-                "http://localhost:8080") // Vue
+                "http://localhost:8080",
+                "http://localhost:5174",// Vue
+                "http://localhost:5173"// Vue
+                ) // Vue
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -42,6 +50,7 @@ builder.Services.AddCors(options =>
     });
 });
 builder.Services.AddScoped<JwtService>();
+builder.Services.AddSingleton<IUserIdProvider, NameUserIdProvider>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(jwtOption =>
 {
     jwtOption.TokenValidationParameters = new TokenValidationParameters
@@ -111,11 +120,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseAuthentication(); // ✅ มาก่อน
 app.UseAuthorization();  // ✅ ตามหลัง
-
-
+app.MapHub<ChatHub>("/hub/chatHub");
+//app.MapHub<NotificationHub>("/hub/notification"); // 🧠 route ของ SignalR
 app.MapControllers();
 
 app.Run();

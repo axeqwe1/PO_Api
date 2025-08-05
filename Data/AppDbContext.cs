@@ -1,6 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System;
+using Microsoft.EntityFrameworkCore;
 using PO_Api.Models;
-using YourProject.Models;
 
 namespace PO_Api.Data
 {
@@ -12,44 +12,53 @@ namespace PO_Api.Data
         }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            //modelBuilder.Entity<PO_Details>()
-            //    .HasNoKey() // ถ้าไม่มีจริง ๆ
-            //                //.HasKey(e => new { e.PONo, e.MatrCode, e.Color }); // ถ้า unique จริง ให้ใช้
-            //    .ToView("PO_Details"); // ระบุว่าเป็น View
-            modelBuilder.Entity<PO_Main>()
-            .HasMany(p => p.Details)
-            .WithOne(d => d.PO_Main)
-            .HasForeignKey(d => d.PONo)
-            .HasPrincipalKey(p => p.PONo);
 
-            modelBuilder.Entity<PO_Main>()
-            .HasMany(p => p.FileAttachment)
-            .WithOne() // ถ้าไม่มี navigation back จาก PO_FileAttachment → PO_Main
-            .HasForeignKey(f => f.PONo)
-            .HasPrincipalKey(p => p.PONo);
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+            modelBuilder.Entity<Monitoring>().HasNoKey();
+            modelBuilder.Entity<SupMonitoring>().HasNoKey();
+            
 
-            modelBuilder.Entity<PO_FileAttachment>(entity =>
-            {
-                entity.ToTable("PO_FileAttachment");
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).HasColumnName("id");
-                entity.Property(e => e.Filename).HasColumnName("filename");
-                entity.Property(e => e.Type).HasColumnName("type");
-                entity.Property(e => e.UploadDate).HasColumnName("uploadDate");
-                entity.Property(e => e.Url).HasColumnName("url");
-                entity.Property(e => e.PONo).HasColumnName("PONo");
-                entity.Property(e => e.OriginalName).HasColumnName("originalName");
-                entity.Property(e => e.UploadByType).HasColumnName("UploadByType");
-                entity.Property(e => e.FileSize).HasColumnName("fileSize");
-            });
+            //modelBuilder.Entity<User>()
+            //.HasMany(p => p.Emails)
+            //.WithOne(t => t.User) // ถ้าไม่มี navigation back จาก PO_FileAttachment → PO_Main
+            //.HasForeignKey(f => f.userId)
+            //.HasPrincipalKey(p => p.userId);
+
+            //modelBuilder.Entity<PO_FileAttachment>(entity =>
+            //{
+            //    entity.ToTable("PO_FileAttachment");
+            //    entity.HasKey(e => e.Id);
+            //    entity.Property(e => e.Id).HasColumnName("id");
+            //    entity.Property(e => e.Filename).HasColumnName("filename");
+            //    entity.Property(e => e.Type).HasColumnName("type");
+            //    entity.Property(e => e.UploadDate).HasColumnName("uploadDate");
+            //    entity.Property(e => e.Url).HasColumnName("url");
+            //    entity.Property(e => e.PONo).HasColumnName("PONo");
+            //    entity.Property(e => e.OriginalName).HasColumnName("originalName");
+            //    entity.Property(e => e.UploadByType).HasColumnName("UploadByType");
+            //    entity.Property(e => e.FileSize).HasColumnName("fileSize");
+            //});
+
+            //modelBuilder.Entity<PO_Details>(entity =>
+            //{
+            //    entity.Property(e => e.Qty).HasConversion<double>();
+            //    entity.Property(e => e.ChargeValue).HasConversion<decimal>();
+            //    entity.Property(e => e.ChargeAmt).HasConversion<double>();
+            //    entity.Property(e => e.TotalAmount).HasConversion<double>();
+            //    entity.Property(e => e.Price).HasConversion<double>();
+            //});
+
         }
         public DbSet<User> Users { get; set; }
-        public DbSet<Role> Roles { get; set; }
-        public DbSet<Supplier> Suppliers { get; set; }
-        public DbSet<PO_Main> PO_Mains { get; set; }
-        public DbSet<PO_SuppRcv> PO_SuppRcvs { get; set; }
-        public DbSet<PO_Details> PO_Details { get; set; }
-        public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
-        public DbSet<PO_FileAttachment> PO_FileAttachments { get; set; }
+        public DbSet<Roles> Roles { get; set; }
+        public DbSet<Programes> Programs { get; set; }
+        public DbSet<UserAccess> Accesses { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
+
+        public DbSet<Monitoring> Monitoring { get; set; }
+        public DbSet<SupMonitoring> SupMonitorings { get; set; }
+        public DbSet<WorkMinuteModel> WorkMinutes { get; set; }
+        public DbSet<MasterLine> masterLines { get; set; }
+        public DbSet<MonitorLineStatus> MonitorLineStatus { get; set; }
     }
 }

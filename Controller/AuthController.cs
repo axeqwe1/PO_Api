@@ -1,8 +1,13 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Azure.Core;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json.Linq;
 using PO_Api.Data;
+using PO_Api.Data.DTO;
 using PO_Api.Data.DTO.Request;
+using PO_Api.Models;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace PO_Api.Controller
 {
@@ -13,46 +18,47 @@ namespace PO_Api.Controller
 
         private readonly AppDbContext _db;
         private readonly JwtService _jwt;
-
+        private readonly EmailService _emailService;
         public AuthController(AppDbContext db, JwtService jwt)
         {
             _db = db;
             _jwt = jwt;
+            _emailService = new EmailService(
+                host: "mail.yehpattana.com",
+                port: 587,
+                username: "jarvis-ypt@Ta-yeh.com",
+                password: "J!@#1028", // ต้องเป็น App Password
+                fromEmail: "jarvis-ypt@ta-yeh.com",
+                displayFromEmail: "YPT PO ระบบสมาชิก"
+            );
         }
 
 
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginRequestDTO request)
         {
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.username == request.Username);
-            var rolename = await _db.Roles.FirstOrDefaultAsync(r => r.RoleId == user.RoleId);
-            if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.password))
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == request.Username && u.PasswordHash == request.Password);
+
+            if (user == null)
                 return Unauthorized("Invalid credentials");
-            var suppliername = await _db.Suppliers.FirstOrDefaultAsync(s => s.SupplierCode == user.supplierId);
-            var expiry = DateTime.Now.AddDays(7);
+
+            var expiry = DateTime.UtcNow.AddDays(7);
             var accessToken = _jwt.GenerateAccessToken(user);
             var refreshToken = _jwt.GenerateRefreshToken();
 
-            SetCookie("access_token", accessToken, minutes: 1);
+            SetCookie("access_token", accessToken, minutes: 10);
             SetCookie("refresh_token", refreshToken, expire: expiry);
             SetCookie("auth_status", "authenticated", expire: expiry, httpOnly: false);
             await _jwt.SaveRefreshTokenAsync(user, refreshToken);
 
             return Ok(new
             {
-                user.userId,
-                user.firstname,
-                user.lastname,
-                user.email,
-                user.RoleId,
-                rolename.RoleName,
-                user.supplierId,
-                suppliername.SupplierName,
+                user,
                 message = "Login successful",
+                //access_token = accessToken,
                 //accessToken,
             });
         }
-
 
         [HttpPost("refresh")]
         public async Task<IActionResult> RefreshToken()
@@ -64,16 +70,19 @@ namespace PO_Api.Controller
             if (string.IsNullOrEmpty(refreshToken))
                 return BadRequest("Refresh token not provided.");
 
-
-
             // หา refresh token ในฐานข้อมูล (เช็คทั้ง revoked และ expired)
             var token = await _db.RefreshTokens.FirstOrDefaultAsync(r =>
-                r.Token == refreshToken &&
-                !r.IsRevoked &&
+                r.Token == refreshToken && !r.IsRevoked &&
                 r.ExpiresAt > DateTime.Now);
 
             if (token == null)
+            {
+                DeleteCookie("access_token");
+                DeleteCookie("refresh_token");
+                SetCookie("auth_status", "", days: -1); // Clear cookie
                 return Unauthorized("Invalid or expired refresh token.");
+            }
+                
 
             // ตรวจสอบ refresh token กับ user
             var userId = token.UserId;
@@ -95,7 +104,7 @@ namespace PO_Api.Controller
                 }
             }
             // หา user
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.userId == userId);
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId);
             if (user == null)
                 return NotFound("User not found.");
 
@@ -160,32 +169,55 @@ namespace PO_Api.Controller
             return Ok("Logged out successfully.");
         }
 
+
+        [HttpPost("logincors")]
+        public async Task<IActionResult> Logincors([FromQuery] int empNo)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == empNo);
+
+            if (user == null)
+                return Unauthorized("Invalid credentials");
+
+            var expiry = DateTime.UtcNow.AddDays(7);
+            var accessToken = _jwt.GenerateAccessToken(user);
+            var refreshToken = _jwt.GenerateRefreshToken();
+
+            SetCookie("access_token", accessToken, minutes: 10);
+            SetCookie("refresh_token", refreshToken, expire: expiry);
+            SetCookie("auth_status", "authenticated", expire: expiry, httpOnly: false);
+            await _jwt.SaveRefreshTokenAsync(user, refreshToken);
+
+            return Ok(new
+            {
+                user,
+                message = "Login successful",
+                //access_token = accessToken,
+                //accessToken,
+            });
+        }
+
         [Authorize]
         [HttpGet("me")]
         public async Task<IActionResult> Me()
         {
             if (User.Identity?.IsAuthenticated != true)
+            {
+                DeleteCookie("access_token");
+                DeleteCookie("refresh_token");
+                SetCookie("auth_status", "", days: -1); // Clear cookie
                 return Unauthorized("Not authenticated");
+            }
 
             var username = User.Identity.Name!;
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.username == username);
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
             if (user == null)
                 return NotFound("User not found");
-            var rolename = await _db.Roles.FirstOrDefaultAsync(r => r.RoleId == user.RoleId);
-            var suppliername = await _db.Suppliers.FirstOrDefaultAsync(s => s.SupplierCode == user.supplierId);
             return Ok(new
             {
-                user.userId,
-                user.firstname,
-                user.lastname,
-                user.username,
-                user.email,
-                user.RoleId,
-                user.supplierId,
-                suppliername.SupplierName,
-                rolename.RoleName,
+                user
             });
         }
+
 
         private void SetCookie(string name, string value, int? minutes = null, int? days = null,
                               DateTime? expire = null, bool httpOnly = true)
