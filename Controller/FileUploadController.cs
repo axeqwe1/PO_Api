@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using PO_Api.Data.DTO.Request;
 using PO_Api.Services;
-using YourProject.Models;
 
 namespace PO_Api.Controller
 {
@@ -20,7 +19,7 @@ namespace PO_Api.Controller
 
         [HttpPost]
         [Route("upload")]
-        public async Task<IActionResult> UploadFiles(FileUploadRequest request)
+        public async Task<IActionResult> UploadFiles([FromForm] FileUploadRequest request)
         {
             try
             {
@@ -36,7 +35,6 @@ namespace PO_Api.Controller
 
 
                 var result = await _fileService.UploadFilesAsync(request.PONo, request.UploadType, request.Files);
-                
 
                 if (result.Success)
                 {
@@ -103,14 +101,13 @@ namespace PO_Api.Controller
                 var fileInfo = await _fileService.GetFileByIdAsync(fileId);
                 if (fileInfo == null)
                 {
-                    
-                    return StatusCode(404, new { success = false, message = "Not found file data in database" });
+                    return NotFound();
                 }
 
                 var fileStream = await _fileService.DownloadFileAsync(fileId);
                 if (fileStream == null)
                 {
-                    return StatusCode(404, new { success = false, message = "Not found file data in directory maybe moved or deleted already" });
+                    return NotFound();
                 }
 
                 return File(fileStream, fileInfo.Type, fileInfo.OriginalName);

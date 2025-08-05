@@ -1,12 +1,9 @@
-﻿using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using PO_Api.Data;
 using PO_Api.Data.DTO;
 using PO_Api.Data.DTO.Response;
-using PO_Api.Hubs;
-using PO_Api.Models;
 using YourProject.Models;
-
+using YourProject.Models;
 namespace PO_Api.Services
 {
     public class FileService : IFileService
@@ -16,23 +13,16 @@ namespace PO_Api.Services
         private readonly IConfiguration _configuration;
         private readonly ILogger<FileService> _logger;
         private readonly string _networkPath = @"\\192.168.9.3\YMTMainFile\YPTMAIN\POMaterialYPT\POWebsite\"; // Update with your network path
-        private readonly string _localBasePath;
-        private readonly IHubContext<NotificationHub> _hub;
-
         public FileService(
             AppDbContext context,
             IWebHostEnvironment environment,
             IConfiguration configuration,
-            ILogger<FileService> logger,
-            IHubContext<NotificationHub> hub)
+            ILogger<FileService> logger)
         {
             _context = context;
             _environment = environment;
             _configuration = configuration;
             _logger = logger;
-            _localBasePath = Path.Combine(environment.ContentRootPath, "Uploads");
-            _hub = hub;
-
         }
 
         public async Task<FileUploadResponse> UploadFilesAsync(string poNo, int uploadType, List<IFormFile> files)
@@ -51,7 +41,7 @@ namespace PO_Api.Services
                     response.Message = "PO Number is required";
                     return response;
                 }
-
+//            var response = new FileUploadResponse
                 // Validate files
                 if (files == null || !files.Any())
                 {
@@ -59,7 +49,7 @@ namespace PO_Api.Services
                     response.Message = "No files provided";
                     return response;
                 }
-
+//                    response.Success = false;
                 // ตรวจสอบก่อนใช้ และสร้างโฟลเดอร์สำรองหากไม่มี
                 string folderType = "";
                 if (uploadType == 1)
@@ -70,8 +60,8 @@ namespace PO_Api.Services
                 {
                     folderType = "POPurchaseOfficerFile";
                 }
-
-                var networkPath = Path.Combine(_localBasePath, folderType);
+//                    response.Success = false;
+                var networkPath = Path.Combine(_networkPath, folderType);
                 if (!Directory.Exists(networkPath))
                 {
                     Directory.CreateDirectory(networkPath);
@@ -82,9 +72,9 @@ namespace PO_Api.Services
                 {
                     Directory.CreateDirectory(uploadPath);
                 }
-
+                    Directory.CreateDirectory(uploadPath);
                 var FileInDb = _context.PO_FileAttachments
-                    .Where(f => f.PONo == poNo && f.UploadByType == uploadType)
+                    .Where(f => f.PONo == poNo)
                     .Select(f => new
                     {
                         f.PONo,
@@ -96,7 +86,7 @@ namespace PO_Api.Services
                 var uploadedSize = files.Sum(f => f.Length);
                 var maxFileSize = _configuration.GetValue<long>("FileUpload:MaxFileSizeInBytes", 5242880); // 5MB default
                 var allowedExtensions = _configuration.GetSection("FileUpload:AllowedExtensions").Get<string[]>()
-                    ?? new[] { ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".jpg", ".jpeg", ".png", ".txt" };
+                    ?? new[] { ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".jpg", ".jpeg", ".png" };
                 var totalSize = total + uploadedSize;
                 if (uploadedSize > maxFileSize)
                 {
@@ -111,7 +101,7 @@ namespace PO_Api.Services
                     response.Message = $"PO Limit total filesize is 5MB. Free space now {MBFree.ToString("0.##")} MB.";
                     return response;
                 }
-
+                    return response;
                 foreach (var file in files)
                 {
                     try
@@ -124,7 +114,7 @@ namespace PO_Api.Services
                             response.Message = "FileSize Must less than 5MB";
                             return response;
                         }
-
+//                    response.Success = false;
                         // Validate file extension
                         var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
                         if (!allowedExtensions.Contains(fileExtension))
@@ -132,11 +122,11 @@ namespace PO_Api.Services
                             _logger.LogWarning($"File {file.FileName} has unsupported extension");
                             continue;
                         }
-
+//                            response.Success = false;
                         // Generate unique filename
                         var uniqueFileName = $"{Guid.NewGuid()}{fileExtension}";
                         var filePath = Path.Combine(uploadPath, uniqueFileName);
-
+//                        {
                         // Save file to disk
                         using (var stream = new FileStream(filePath, FileMode.Create))
                         {
@@ -146,7 +136,7 @@ namespace PO_Api.Services
                         // Create database record
                         var relativePath = Path.Combine(folderType, poNo, uniqueFileName)
     .Replace("\\", "/"); // ใช้ / เพื่อให้ดูเป็น URL-friendly และไม่ติดปัญหา cross-platform
-
+//                        using (var stream = new FileStream(filePath, FileMode.Create))
                         var fileAttachment = new PO_FileAttachment
                         {
                             Filename = uniqueFileName,
@@ -161,7 +151,7 @@ namespace PO_Api.Services
 
                         _context.PO_FileAttachments.Add(fileAttachment);
                         await _context.SaveChangesAsync();
-
+//                            PONo = poNo,
                         // Add to response
                         response.UploadedFiles.Add(new FileUploadDto
                         {
@@ -174,82 +164,20 @@ namespace PO_Api.Services
                             PONo = fileAttachment.PONo,
                             FileSize = fileAttachment.FileSize
                         });
-
+//                        };
                         _logger.LogInformation($"File {file.FileName} uploaded successfully for PO {poNo}");
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, $"Failed to upload file {file.FileName} for PO {poNo}");
-                        response.Success = false;
-                        response.Message = $"{ex.Message} : Failed to upload file {file.FileName} for PO {poNo}";
-                        return response;
                     }
-                }
-
-                var userList = _context.Users.Include(x => x.Role);
-                var SuppCode = await _context.PO_Mains.FirstOrDefaultAsync(t => t.PONo == poNo);
-                List<User> userListResult = new();
-                string typeName = "";
-                if (uploadType == 1)
-                {
-                    userListResult = await userList.Where(t => t.Role.RoleName != "User").ToListAsync();
-                    typeName = $"Supplier : {SuppCode.SuppCode}";
-                }
-                if (uploadType == 2)
-                {
-                    userListResult = await userList.Where(t => t.Role.RoleName == "User" && t.supplierId == SuppCode.SuppCode).ToListAsync();
-                    typeName = "Purchase Officer";
-                }
-
-                if (userListResult.Any())
-                {
-                    // 1. สร้าง Notification หลัก
-                    var newNoti = new PO_Notifications
-                    {
-                        noti_id = Guid.NewGuid(),
-                        title = "PO UploadFile",
-                        message = $"PO เลขที่ {poNo} มีการอัพโหลดไฟล์โดย {typeName}",
-                        type = "UploadFile",
-                        refId = poNo,
-                        refType = "PO",
-                        createAt = DateTime.UtcNow,
-                        createBy = "system" // หรือ user ปัจจุบัน
-                    };
-
-                    // 2. สร้าง Receiver สำหรับทุกคน
-                    foreach (var u in userListResult)
-                    {
-                        newNoti.Receivers.Add(new PO_NotificationReceiver
-                        {
-                            noti_recvId = Guid.NewGuid(),
-                            noti_id = newNoti.noti_id,
-                            userId = u.userId,
-                            isRead = false,
-                            isArchived = false,
-                            readAt = DateTime.UtcNow
-                        });
-                    }
-
-                    _context.PO_Notifications.Add(newNoti);
-                    await _context.SaveChangesAsync();
-                }
-
-                if (uploadType == 1)
-                {
-                    await _hub.Clients.Group("master").SendAsync("ReceiveMessage", "Info", $"PO {poNo} has been UploadFile by supplier {SuppCode.SuppCode}.");
-                        
-                }
-                if (uploadType == 2)
-                {
-                    await _hub.Clients.Group($"supplier-{SuppCode.SuppCode}").SendAsync("ReceiveMessage", "Info", $"PO {poNo} has been UploadFile by Purchase Officer.");
-
                 }
 
                 response.Success = response.UploadedFiles.Any();
                 response.Message = response.Success
                     ? $"Successfully uploaded {response.UploadedFiles.Count} file(s)"
                     : "No files were uploaded";
-
+//                response.Success = response.UploadedFiles.Any();
                 return response;
             }
             catch (Exception ex)
@@ -260,8 +188,8 @@ namespace PO_Api.Services
                 return response;
             }
         }
-
-
+//                response.Message = "An error occurred while uploading files";
+//                return response;
         public async Task<List<FileUploadDto>> GetFilesByPONoAsync(string poNo, int uploadType)
         {
             try
@@ -281,7 +209,7 @@ namespace PO_Api.Services
                         FileSize = f.FileSize
                     })
                     .ToListAsync();
-
+//                        PONo = f.PONo,
                 return files;
             }
             catch (Exception ex)
@@ -290,26 +218,26 @@ namespace PO_Api.Services
                 return new List<FileUploadDto>();
             }
         }
-
+//                _logger.LogError(ex, $"Error retrieving files for PO {poNo}");
         public async Task<bool> DeleteFileAsync(int fileId)
         {
             try
             {
                 var fileAttachment = await _context.PO_FileAttachments
                     .FirstOrDefaultAsync(f => f.Id == fileId);
-
+//            try
                 if (fileAttachment == null)
                 {
                     return false;
                 }
-
+//                if (fileAttachment == null)
                 // Delete physical file
-                var filePath = Path.Combine(_localBasePath, fileAttachment.Url.Replace("/", Path.DirectorySeparatorChar.ToString()));
+                var filePath = Path.Combine(_networkPath, fileAttachment.Url.Replace("/", Path.DirectorySeparatorChar.ToString()));
                 if (File.Exists(filePath))
                 {
                     File.Delete(filePath);
                 }
-
+                    File.Delete(filePath);
                 // Delete database record
                 _context.PO_FileAttachments.Remove(fileAttachment);
                 await _context.SaveChangesAsync();
@@ -323,27 +251,27 @@ namespace PO_Api.Services
                 return false;
             }
         }
-
+//                _logger.LogError(ex, $"Error deleting file");
         public async Task<FileStream> DownloadFileAsync(int fileId)
         {
-
+//        }
             var fileAttachment = await _context.PO_FileAttachments.FindAsync(fileId);
             if (fileAttachment == null)
             {
                 return null;
             }
-
+//            if (fileAttachment == null)
             //var filePath = Path.Combine(_networkPath, fileAttachment.Url.TrimStart('/'));
-            var filePath = Path.Combine(_localBasePath, fileAttachment.Url.Replace("/", Path.DirectorySeparatorChar.ToString()));
-
+            var filePath = Path.Combine(_networkPath, fileAttachment.Url.Replace("/", Path.DirectorySeparatorChar.ToString()));
+            //var filePath = Path.Combine(_networkPath, fileAttachment.Url.TrimStart('/'));
             if (!File.Exists(filePath))
             {
                 return null;
             }
-
+//            if (!File.Exists(filePath))
             return new FileStream(filePath, FileMode.Open, FileAccess.Read);
         }
-
+//            }
         public async Task<FileUploadDto> GetFileByIdAsync(int fileId)
         {
             try
@@ -353,7 +281,7 @@ namespace PO_Api.Services
                 {
                     return null;
                 }
-
+//                if (fileAttachment == null)
                 return new FileUploadDto
                 {
                     Id = fileAttachment.Id,
@@ -371,9 +299,9 @@ namespace PO_Api.Services
             {
                 throw new Exception(ex.Message);
             }
-
+//            catch (Exception ex)
         }
-
+//                throw new Exception(ex.Message);
         public async Task<bool> UpdateDescriptionAsync(int FileId,string description)
         {
             try{
@@ -396,3 +324,7 @@ namespace PO_Api.Services
         }
     }
 }
+//            }
+//        }
+//    }
+//}

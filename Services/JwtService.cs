@@ -20,12 +20,12 @@ public class JwtService
 
     public string GenerateAccessToken(User user)
     {
-        var userRole = _db.Roles.FirstOrDefault(r => r.RoleId == user.RoleId).RoleName;
+        //var userRole = _db.Roles.FirstOrDefault(r => r.RoleId == user.RoleId).RoleName;
         var claims = new[]
         {
-            new Claim(ClaimTypes.Name, user.username),
-            new Claim(ClaimTypes.NameIdentifier, user.userId.ToString()),
-            new Claim(ClaimTypes.Role, userRole)
+            new Claim(ClaimTypes.Name, user.Username),
+            new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+            //new Claim(ClaimTypes.Role, userRole)
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
@@ -75,8 +75,8 @@ public class JwtService
         var refreshToken = new RefreshToken
         {
             Token = token,
-            UserId = user.userId,
-            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            UserId = user.UserId,
+            ExpiresAt = DateTime.UtcNow.AddYears(10),
             IsRevoked = false
         };
 
@@ -113,15 +113,13 @@ public class JwtService
 
     public async Task<bool> ValidateRefreshTokenAsync(int userId, string refreshToken)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.userId == userId);
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId);
         if (user == null)
             return false;
 
         var tokenInDb = await _db.RefreshTokens
-            .FirstOrDefaultAsync(t => t.UserId == user.userId && t.Token == refreshToken && !t.IsRevoked);
+            .FirstOrDefaultAsync(t => t.UserId == user.UserId && t.Token == refreshToken && !t.IsRevoked);
 
         return tokenInDb != null && tokenInDb.ExpiresAt > DateTime.UtcNow;
     }
-
-
 }

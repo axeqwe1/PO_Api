@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace PO_Api.Models
 {
-    [Table("PO_User")] // กำหนดชื่อตารางในฐานข้อมูล
+    [Table("YMT_Users")] // กำหนดชื่อตารางในฐานข้อมูล
     public class User
     {
 
@@ -16,11 +16,10 @@ namespace PO_Api.Models
         public string? username { get; set; }
         [Required]
         public string? password { get; set; }
+        public string? email { get; set; }
         public string? supplierId { get; set; }
         public int RoleId { get; set; } = 0; // 0 = Admin, 1 = Supplier, 2 = Customer
-        public bool resign { get; set; } = false; // true = ลาออก, false = ยังทำงานอยู่
-        public virtual Role? Role { get; set; } // ความสัมพันธ์กับ Role
 
-        public ICollection<UserEmail> Emails { get; set; }
+        public virtual Role? Role { get; set; } // ความสัมพันธ์กับ Role
     }
 }
