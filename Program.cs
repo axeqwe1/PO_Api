@@ -49,7 +49,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
         ValidateIssuer = true,
         ValidateAudience = true,
         ValidateIssuerSigningKey = true,
-
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero,   // <‑‑ ตัดเวลาผ่อน
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidAudience = builder.Configuration["Jwt:Audience"],
 
