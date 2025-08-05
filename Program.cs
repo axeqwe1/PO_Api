@@ -19,7 +19,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     )
 );
 builder.Services.AddSignalR();
-builder.Services.AddScoped<IFileService, FileService>();
+//builder.Services.AddScoped<IFileService, FileService>();
 // เพิ่มบริการ CORS
 builder.Services.AddCors(options =>
 {
@@ -32,7 +32,9 @@ builder.Services.AddCors(options =>
                 "http://localhost:4200",
                 "http://localhost:3001",
                 "https://www.ymt-group.com",
-                "http://localhost:8080"
+                "http://localhost:8080",
+                "http://localhost:5174",// Vue
+                "http://localhost:5173"// Vue
                 ) // Vue
             .AllowAnyHeader()
             .AllowAnyMethod()
@@ -121,7 +123,7 @@ if (app.Environment.IsDevelopment())
 app.UseAuthentication(); // ✅ มาก่อน
 app.UseAuthorization();  // ✅ ตามหลัง
 app.MapHub<ChatHub>("/hub/chatHub");
-app.MapHub<NotificationHub>("/hub/notification"); // 🧠 route ของ SignalR
+//app.MapHub<NotificationHub>("/hub/notification"); // 🧠 route ของ SignalR
 app.MapControllers();
 
 app.Run();

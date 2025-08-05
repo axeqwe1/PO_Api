@@ -1,6 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System;
+using Microsoft.EntityFrameworkCore;
 using PO_Api.Models;
-using YourProject.Models;
 
 namespace PO_Api.Data
 {
@@ -14,18 +14,15 @@ namespace PO_Api.Data
         {
 
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+            modelBuilder.Entity<Monitoring>().HasNoKey();
+            modelBuilder.Entity<SupMonitoring>().HasNoKey();
+            
 
-            modelBuilder.Entity<PO_Notifications>()
-            .HasMany(p => p.Receivers)
-            .WithOne(r => r.Notification)
-            .HasForeignKey(r => r.noti_id)
-            .HasPrincipalKey(n => n.noti_id);
-
-            modelBuilder.Entity<User>()
-            .HasMany(p => p.Emails)
-            .WithOne(t => t.User) // ถ้าไม่มี navigation back จาก PO_FileAttachment → PO_Main
-            .HasForeignKey(f => f.userId)
-            .HasPrincipalKey(p => p.userId);
+            //modelBuilder.Entity<User>()
+            //.HasMany(p => p.Emails)
+            //.WithOne(t => t.User) // ถ้าไม่มี navigation back จาก PO_FileAttachment → PO_Main
+            //.HasForeignKey(f => f.userId)
+            //.HasPrincipalKey(p => p.userId);
 
             //modelBuilder.Entity<PO_FileAttachment>(entity =>
             //{
@@ -42,30 +39,26 @@ namespace PO_Api.Data
             //    entity.Property(e => e.FileSize).HasColumnName("fileSize");
             //});
 
-            modelBuilder.Entity<PO_Details>(entity =>
-            {
-                entity.Property(e => e.Qty).HasConversion<double>();
-                entity.Property(e => e.ChargeValue).HasConversion<decimal>();
-                entity.Property(e => e.ChargeAmt).HasConversion<double>();
-                entity.Property(e => e.TotalAmount).HasConversion<double>();
-                entity.Property(e => e.Price).HasConversion<double>();
-            });
-
+            //modelBuilder.Entity<PO_Details>(entity =>
+            //{
+            //    entity.Property(e => e.Qty).HasConversion<double>();
+            //    entity.Property(e => e.ChargeValue).HasConversion<decimal>();
+            //    entity.Property(e => e.ChargeAmt).HasConversion<double>();
+            //    entity.Property(e => e.TotalAmount).HasConversion<double>();
+            //    entity.Property(e => e.Price).HasConversion<double>();
+            //});
 
         }
         public DbSet<User> Users { get; set; }
-        public DbSet<Role> Roles { get; set; }
-        public DbSet<Supplier> Suppliers { get; set; }
-        public DbSet<PO_Main> PO_Mains { get; set; }
-        public DbSet<PO_SuppRcv> PO_SuppRcvs { get; set; }
-        public DbSet<PO_Details> PO_Details { get; set; }
-        public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
-        public DbSet<PO_FileAttachment> PO_FileAttachments { get; set; }
-        public DbSet<PO_PasswordResetToken> PO_PasswordResetTokens { get; set; }
-        public DbSet<PO_Notifications> PO_Notifications { get; set; }
-        public DbSet<PO_NotificationReceiver> PO_NotificationReceivers { get; set; }
-        public DbSet<UserEmail> UserEmails { get; set; }
+        public DbSet<Roles> Roles { get; set; }
+        public DbSet<Programes> Programs { get; set; }
+        public DbSet<UserAccess> Accesses { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
-        public DbSet<UserCenter> UserCenters { get; set; }
+        public DbSet<Monitoring> Monitoring { get; set; }
+        public DbSet<SupMonitoring> SupMonitorings { get; set; }
+        public DbSet<WorkMinuteModel> WorkMinutes { get; set; }
+        public DbSet<MasterLine> masterLines { get; set; }
+        public DbSet<MonitorLineStatus> MonitorLineStatus { get; set; }
     }
 }
