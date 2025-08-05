@@ -117,7 +117,7 @@ app.UseAuthorization();  // ✅ ตามหลัง
 
 
 app.MapHub<ChatHub>("/hub/chatHub");
-//app.MapHub<NotificationHub>("/hub/notification"); // 🧠 route ของ SignalR
+app.MapHub<NotificationHub>("/hub/notification"); // 🧠 route ของ SignalR
 app.MapControllers();
 
 app.Run();

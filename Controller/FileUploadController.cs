@@ -2,6 +2,7 @@
 using PO_Api.Data.DTO.Request;
 using PO_Api.Services;
 
+
 namespace PO_Api.Controller
 {
     [ApiController]
@@ -35,6 +36,7 @@ namespace PO_Api.Controller
 
 
                 var result = await _fileService.UploadFilesAsync(request.PONo, request.UploadType, request.Files);
+                
 
                 if (result.Success)
                 {
@@ -101,13 +103,14 @@ namespace PO_Api.Controller
                 var fileInfo = await _fileService.GetFileByIdAsync(fileId);
                 if (fileInfo == null)
                 {
-                    return NotFound();
+                    
+                    return StatusCode(404, new { success = false, message = "Not found file data in database" });
                 }
 
                 var fileStream = await _fileService.DownloadFileAsync(fileId);
                 if (fileStream == null)
                 {
-                    return NotFound();
+                    return StatusCode(404, new { success = false, message = "Not found file data in directory maybe moved or deleted already" });
                 }
 
                 return File(fileStream, fileInfo.Type, fileInfo.OriginalName);

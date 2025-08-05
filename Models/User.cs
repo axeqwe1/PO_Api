@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace PO_Api.Models
 {
-    [Table("YMT_Users")] // กำหนดชื่อตารางในฐานข้อมูล
+    [Table("PO_User")] // กำหนดชื่อตารางในฐานข้อมูล
     public class User
     {
 

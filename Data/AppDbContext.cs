@@ -1,6 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System;
+using Microsoft.EntityFrameworkCore;
 using PO_Api.Models;
-using YourProject.Models;
 
 namespace PO_Api.Data
 {
@@ -42,8 +42,8 @@ namespace PO_Api.Data
                 entity.Property(e => e.UploadByType).HasColumnName("UploadByType");
                 entity.Property(e => e.FileSize).HasColumnName("fileSize");
             });
-        }
-        public DbSet<User> Users { get; set; }
+                entity.Property(e => e.Price).HasConversion<double>();
+            });
         public DbSet<Role> Roles { get; set; }
         public DbSet<Supplier> Suppliers { get; set; }
         public DbSet<PO_Main> PO_Mains { get; set; }
@@ -51,5 +51,16 @@ namespace PO_Api.Data
         public DbSet<PO_Details> PO_Details { get; set; }
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
         public DbSet<PO_FileAttachment> PO_FileAttachments { get; set; }
+        public DbSet<PO_FileAttachment> PO_FileAttachments { get; set; }
+        public DbSet<PO_PasswordResetToken> PO_PasswordResetTokens { get; set; }
+        public DbSet<PO_Notifications> PO_Notifications { get; set; }
+        public DbSet<PO_NotificationReceiver> PO_NotificationReceivers { get; set; }
+        public DbSet<UserEmail> UserEmails { get; set; }
+
+        public DbSet<UserCenter> UserCenters { get; set; }
+        public DbSet<SupMonitoring> SupMonitorings { get; set; }
+        public DbSet<WorkMinuteModel> WorkMinutes { get; set; }
+        public DbSet<MasterLine> masterLines { get; set; }
+        public DbSet<MonitorLineStatus> MonitorLineStatus { get; set; }
     }
 }

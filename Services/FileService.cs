@@ -25,12 +25,7 @@ namespace PO_Api.Services
             _logger = logger;
         }
 
-        public async Task<FileUploadResponse> UploadFilesAsync(string poNo, int uploadType, List<IFormFile> files)
-        {
-            var response = new FileUploadResponse
-            {
-                UploadedFiles = new List<FileUploadDto>()
-            };
+//        }
 
             try
             {
